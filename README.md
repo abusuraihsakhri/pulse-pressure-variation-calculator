@@ -1,112 +1,134 @@
 # Pulse Pressure Variation Calculator
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+> **Domain:** Clinical Decision Support & Biomedical Computing
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
 
 </div>
 
 ---
 
-## 📖 What It Does
+## What It Does
 
-Pulse Pressure Variation Calculator
-PPV and SVV from arterial waveform extrema for fluid responsiveness (threshold 13%).
-Stdlib only.
+Pulse Pressure Variation Calculator computes clinical scores from laboratory values and physiological measurements. Supports MELD-Na, QTc (Bazett), BMI z-score, HbA1c/eAG conversion, APRI/FIB-4, and generic scoring.
 
 ---
 
-## ⚙️ Key Capabilities & Algorithmic Modules
+## Key Modules
 
-### 🔬 Analytical Functions
+### Core Calculators (`ppv.py`)
+- **`assess_row()`** — Routes input rows to the appropriate calculator based on detected keys.
+- **`calculate_meld_na()`** — MELD-Na score for liver disease severity.
+- **`calculate_qtc()`** — Corrected QT interval using Bazett's formula.
+- **`calculate_bmi_z()`** — BMI computation for pediatric patients.
+- **`convert_hba1c()`** — Converts between HbA1c (%) and estimated average glucose (mg/dL).
+- **`calculate_apri_fib4()`** — APRI and FIB-4 scores for liver fibrosis assessment.
+- **`process_csv()`** — Batch processes CSV files through the calculator pipeline.
 
-- **`calculate_score()`**: Generic formula stub: weighted sum of numeric inputs.
-- **`assess_row()`** — calculates and validates assess_row parameters.
-- **`process_csv()`** — calculates and validates process_csv parameters.
-- **`build_parser()`** — calculates and validates build_parser parameters.
-- **`main()`** — calculates and validates main parameters.
+### Enterprise Agent Framework (`agents/`)
+- **SystemSupervisor** — Multi-worker orchestration with PHI guard and HMAC-SHA256 audit trail.
+- **Specialized Workers** — InvariantQCWorker, SafetyEscalationWorker, ProtocolConformanceWorker.
+- **FastAPI Server** — REST endpoints at `/api/audit`, `/api/chat`, `/api/audit/logs`, `/health`, `/metrics`.
 
 ---
 
-## 📐 Mathematical Formulation & Logic
+## Quickstart
 
-```text
-  """Generic formula stub: weighted sum of numeric inputs."""
-  score = sum(vals) * (0.9 + h*0.02) + math.log1p(len(vals))
-  return calculate_score(**row)
+### Installation
+```bash
+pip install -e ".[dev]"
+```
+
+### CLI Usage
+```bash
+# Single calculation
+python cli.py audit --task-id TASK-001 --primary 28.5 --secondary 14.2
+
+# Batch CSV processing
+python cli.py batch -i sample.csv -o results.csv
+
+# Verify audit trail
+python cli.py verify-audit
+
+# Launch API server
+python cli.py serve --host 127.0.0.1 --port 8000
+```
+
+### Direct Python Usage
+```python
+from ppv import assess_row
+
+# MELD-Na calculation
+result = assess_row({"bilirubin": 2.5, "creatinine": 1.2, "inr": 1.1, "sodium": 138})
+
+# QTc calculation
+result = assess_row({"qt_ms": 420, "hr_bpm": 72})
+
+# Generic scoring
+result = assess_row({"value": 10, "qty": 2})
 ```
 
 ---
 
-## 💻 CLI Quickstart & Usage
+## Input Data Schema
 
-### 1. Guided Interactive Mode
-```bash
-python cli.py
-```
-
-### 2. Direct Parameterized Evaluation
-```bash
-python cli.py --task-id <value> --target <value> --primary <value> --secondary <value>
-```
-
-### Parameter Reference
-- `--task-id`: Specifies input measurement or parameter value.
-- `--target`: Specifies input measurement or parameter value.
-- `--primary`: Specifies input measurement or parameter value.
-- `--secondary`: Specifies input measurement or parameter value.
-- `--critical`: Specifies input measurement or parameter value.
-- `--status`: Specifies input measurement or parameter value.
-- `--input`: Specifies input measurement or parameter value.
-- `--output`: Specifies input measurement or parameter value.
-
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `id` | Parameter / observation metric | Required |
-| `value` | Parameter / observation metric | Required |
-| `qty` | Parameter / observation metric | Required |
+| Field | Description | Used By |
+|:------|:------------|:--------|
+| `bilirubin` | Bilirubin level (mg/dL) | MELD-Na |
+| `creatinine` | Creatinine level (mg/dL) | MELD-Na |
+| `inr` | International Normalized Ratio | MELD-Na |
+| `sodium` | Sodium level (mEq/L) | MELD-Na |
+| `qt_ms` / `qt` | QT interval (ms) | QTc |
+| `hr_bpm` / `heart_rate` | Heart rate (bpm) | QTc |
+| `weight_kg` | Weight in kilograms | BMI |
+| `height_cm` | Height in centimeters | BMI |
+| `hba1c_percent` | HbA1c percentage | HbA1c conversion |
+| `eag_mgdl` | Estimated average glucose | HbA1c conversion |
+| `ast_u_l` | AST level (U/L) | APRI/FIB-4 |
 
 ---
 
-## 🛡️ Security & Enterprise Architecture
+## Security
 
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+- **Zero-PHI Outbound Interceptor:** AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
+- **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation.
+- **Environment-based Secret Management:** `AUDIT_SECRET_KEY` must be set in production (no hardcoded defaults).
 
 ---
 
-## 🧪 Testing & Verification
-
-Run the automated test suite:
+## Testing
 
 ```bash
+# Run full test suite
 pytest -v
-```
 
-Execute high-throughput batch simulation benchmarks:
+# Run with coverage
+pytest -v --cov=.
 
-```bash
-python simulator.py --tasks 1000 --concurrency 8
+# Run simulation benchmark
+python simulator.py 1000
 ```
 
 ---
 
-## 🐳 Container Deployment
+## Container Deployment
 
 ```bash
+# Build and run with Docker Compose
+AUDIT_SECRET_KEY=your-secret-key docker-compose up --build
+
+# Or with Docker directly
 docker build -t pulse-pressure-variation-calculator .
-docker run -p 8000:8000 pulse-pressure-variation-calculator
+docker run -p 8000:8000 -e AUDIT_SECRET_KEY=your-secret-key pulse-pressure-variation-calculator
 ```
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
