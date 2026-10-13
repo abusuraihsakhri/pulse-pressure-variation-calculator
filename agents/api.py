@@ -4,7 +4,8 @@ FastAPI REST API Server for Pulse Pressure Variation Calculator.
 from typing import Dict, Any, List
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from .base import AuditLogger, PHIGuard
+from .base import AuditLogger, PHIGuard, SecurityException
+from ppv_core import calculate_ppv
 from .models import SystemTaskPayload, ConsensusDossier
 from .supervisor import SystemSupervisor
 
@@ -19,6 +20,23 @@ app = FastAPI(
 
 class ChatRequest(BaseModel):
     query: str
+
+
+class PPVRequest(BaseModel):
+    pp_max: float | None = None
+    pp_min: float | None = None
+    sbp_max: float | None = None
+    dbp_max: float | None = None
+    sbp_min: float | None = None
+    dbp_min: float | None = None
+
+
+@app.post("/api/ppv")
+def api_ppv(payload: PPVRequest):
+    try:
+        return calculate_ppv(**payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/health")
@@ -37,7 +55,10 @@ def metrics():
 
 @app.post("/api/audit")
 def api_audit(payload: SystemTaskPayload):
-    dossier = supervisor.process_task(payload)
+    try:
+        dossier = supervisor.process_task(payload)
+    except SecurityException as exc:
+        raise HTTPException(status_code=422, detail="Input contains a restricted identifier") from exc
     return dossier.to_dict()
 
 
