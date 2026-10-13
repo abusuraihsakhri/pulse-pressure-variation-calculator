@@ -1,8 +1,6 @@
 # Pulse Pressure Variation Calculator
 
-### [Open the Live Application →](https://abusuraihsakhri.github.io/pulse-pressure-variation-calculator/)
-
-A browser-based and Python calculator for respiratory **pulse pressure variation (PPV)**, using maximum and minimum arterial pulse pressure values measured over the same respiratory cycle. The browser version requires no login, installation, backend, or external assets.
+A browser-based and Python calculator for respiratory **pulse pressure variation (PPV)**, using maximum and minimum arterial pulse pressure values measured over the same respiratory cycle. The browser version requires no login, installation, backend, or external assets. The [repository-configured GitHub Pages address](https://abusuraihsakhri.github.io/pulse-pressure-variation-calculator/) has not yet been verified as live. The application also works as a local static HTML file.
 
 ## Use the calculator
 
@@ -65,7 +63,7 @@ The legacy audit log is in-memory. HMAC verification recomputes signatures and c
 - Core: Python standard library in `ppv_core.py`; FastAPI/Pydantic only for the optional server; Node.js is used for static-page regression tests.
 - Frontend: standalone HTML/CSS/JavaScript. Hosting can use GitHub Pages from the repository root without Python, Pyodide, or a backend.
 - CI: Python 3.10–3.12 runs Python unit/integration tests and Node.js browser-script tests.
-- Browser compatibility: current Chromium, Firefox, and Safari versions with standard JavaScript and Blob downloads. No third-party frontend packages.
+- Browser compatibility: designed for modern browsers supporting standard JavaScript and Blob downloads; full cross-browser end-to-end testing remains outstanding. No third-party frontend packages.
 - License: [MIT](LICENSE).
 
-The link above is the repository-configured GitHub Pages address. Publication and live-site availability depend on the repository's Pages settings.
+The GitHub Pages URL comes from repository metadata; availability depends on the repository's Pages settings. Move a verified live-application link directly below the title once publication and an end-to-end smoke test pass.
