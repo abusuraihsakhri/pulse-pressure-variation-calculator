@@ -67,8 +67,10 @@ def api_chat(req: ChatRequest):
     try:
         ans = supervisor.query_supervisory_chat(req.query)
         return {"response": ans}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except SecurityException as exc:
+        raise HTTPException(status_code=422, detail="Input contains a restricted identifier") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid query") from exc
 
 
 @app.get("/api/audit/logs")
