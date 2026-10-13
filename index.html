@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Local, validated pulse pressure variation calculator for respiratory-cycle arterial waveform measurements.">
+  <title>Pulse Pressure Variation Calculator</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, sans-serif; color-scheme: dark; --bg: #0b1320; --panel: #162235; --line: #34465f; --text: #f1f5fb; --muted: #bac7d9; --focus: #87c6ff; --accent: #56a9ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.55; }
+    .wrap { max-width: 1060px; padding: 32px 20px 60px; margin: auto; }
+    header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 26px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .12em; color: var(--accent); font-weight: 750; font-size: .75rem; }
+    h1 { font-size: clamp(1.5rem, 4vw, 2.2rem); margin: 5px 0 8px; line-height: 1.2; }
+    h2 { font-size: 1.1rem; margin: 0 0 12px; }
+    p { margin: 0 0 14px; }
+    .muted { color: var(--muted); }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px; min-width: 0; }
+    .small { font-size: .875rem; }
+    .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0; }
+    label { display: block; font-size: .91rem; font-weight: 650; margin-bottom: 6px; }
+    input, select, button { font: inherit; }
+    input, select { width: 100%; border: 1px solid #7386a0; border-radius: 8px; background: #0e192a; padding: 12px; color: var(--text); }
+    input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    input::placeholder { color: #9baec6; }
+    .hint { font-size: .78rem; margin-top: 5px; color: var(--muted); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    button { border: 1px solid var(--accent); border-radius: 8px; padding: 10px 15px; cursor: pointer; background: var(--accent); color: #081528; font-weight: 750; }
+    button.secondary { color: var(--text); background: transparent; border-color: #7287a3; }
+    button:hover { filter: brightness(1.08); }
+    .value { font-size: clamp(2.4rem, 7vw, 4.6rem); line-height: 1.1; margin: 16px 0 4px; font-variant-numeric: tabular-nums; font-weight: 780; }
+    .value span { font-size: 1.5rem; color: var(--muted); }
+    .results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 24px 0 0; }
+    .datum { border: 1px solid var(--line); border-radius: 8px; padding: 12px 8px; text-align: center; font-size: .83rem; }
+    .datum strong { font-size: 1.15rem; display: block; font-variant-numeric: tabular-nums; }
+    .error { color: #ffc3bf; min-height: 1.6em; font-weight: 600; }
+    .note { border-left: 3px solid var(--accent); padding: 11px 15px; background: #0d1b2c; border-radius: 0 8px 8px 0; }
+    .note p:last-child { margin-bottom: 0; }
+    .full { margin-top: 20px; }
+    code { font-size: .93em; overflow-wrap: anywhere; }
+    footer { margin-top: 22px; font-size: .85rem; color: var(--muted); }
+    a { color: #9acbff; }
+    [hidden] { display: none !important; }
+    @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .card { padding: 20px; } }
+    @media (max-width: 420px) { .fields { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Hemodynamic measurement tool</div>
+      <h1>Pulse Pressure Variation Calculator</h1>
+      <p class="muted">Calculate PPV from pulse pressure extrema during one respiratory cycle.</p>
+    </div>
+    <span class="small muted">Offline-capable · No uploads</span>
+  </header>
+  <div class="layout">
+    <section class="card" aria-labelledby="form-title">
+      <h2 id="form-title">Measurement inputs</h2>
+      <p class="muted small">Use maximum and minimum <strong>pulse pressure</strong> from the same arterial waveform respiratory cycle, not separately measured cuff readings.</p>
+      <form id="calculator" novalidate>
+        <label for="mode">Input method</label>
+        <select id="mode">
+          <option value="pulse">Pulse pressures (PPmax / PPmin)</option>
+          <option value="paired">Systolic and diastolic pairs</option>
+        </select>
+        <div id="pulse-fields" class="fields">
+          <div><label for="pp-max">Maximum PP (mmHg)</label><input id="pp-max" type="number" step="any" min="0" inputmode="decimal" placeholder="42"><p class="hint">Maximum pulse pressure</p></div>
+          <div><label for="pp-min">Minimum PP (mmHg)</label><input id="pp-min" type="number" step="any" min="0" inputmode="decimal" placeholder="38"><p class="hint">Minimum pulse pressure</p></div>
+        </div>
+        <div id="paired-fields" class="fields" hidden>
+          <div><label for="sbp-max">SBP at maximum PP (mmHg)</label><input id="sbp-max" type="number" step="any" inputmode="decimal" placeholder="122"></div>
+          <div><label for="dbp-max">DBP at maximum PP (mmHg)</label><input id="dbp-max" type="number" step="any" inputmode="decimal" placeholder="80"></div>
+          <div><label for="sbp-min">SBP at minimum PP (mmHg)</label><input id="sbp-min" type="number" step="any" inputmode="decimal" placeholder="118"></div>
+          <div><label for="dbp-min">DBP at minimum PP (mmHg)</label><input id="dbp-min" type="number" step="any" inputmode="decimal" placeholder="80"></div>
+        </div>
+        <p id="error" class="error small" role="alert" aria-live="polite"></p>
+        <div class="actions">
+          <button type="submit">Calculate PPV</button>
+          <button class="secondary" type="button" id="example">Fill example</button>
+          <button class="secondary" type="reset">Clear</button>
+        </div>
+      </form>
+    </section>
+    <section class="card" aria-labelledby="result-title">
+      <h2 id="result-title">Calculated result</h2>
+      <div aria-live="polite" aria-atomic="true">
+        <div id="empty" class="muted">Enter measurements and select Calculate PPV.</div>
+        <div id="result" hidden>
+          <div class="value"><output id="ppv">0.00</output><span> %</span></div>
+          <p class="muted small">Respiratory pulse pressure variation</p>
+          <div class="results">
+            <div class="datum">PPmax<strong id="max-out"></strong>mmHg</div>
+            <div class="datum">PPmin<strong id="min-out"></strong>mmHg</div>
+            <div class="datum">PPmean<strong id="mean-out"></strong>mmHg</div>
+          </div>
+          <div class="actions" style="margin-top:20px">
+            <button class="secondary" type="button" id="download">Download CSV</button>
+          </div>
+        </div>
+      </div>
+      <div class="note small" style="margin-top:24px">
+        <p><strong>Clinical interpretation requires context.</strong> PPV is most informative under controlled positive-pressure ventilation with regular cardiac rhythm and appropriate ventilatory conditions. It may be unreliable with spontaneous breaths, arrhythmia, low tidal volumes, altered thoracic compliance, or right ventricular dysfunction.</p>
+        <p>Do not use any single PPV cut-off as an automatic fluid administration instruction.</p>
+      </div>
+    </section>
+  </div>
+  <section class="card full" aria-labelledby="method-title">
+    <h2 id="method-title">Method and limitations</h2>
+    <p><strong>PP = SBP − DBP</strong> for each individual heartbeat. <strong>PPV (%) = 100 × (PPmax − PPmin) / ((PPmax + PPmin) / 2)</strong>.</p>
+    <p class="muted small">For paired-pressure entry, each systolic and diastolic pressure must come from the same beat, selected by maximum or minimum PP—not independently selected maximum or minimum SBP/DBP. Values must be finite, with positive pulse pressures and PPmax ≥ PPmin. This application does not infer stroke-volume variation or clinical fluid responsiveness.</p>
+    <p class="muted small">Calculations execute in your browser; measurements are not transmitted, stored, or sent to external APIs. The CSV export is generated locally. This is a research and educational measurement aid, not a medical device.</p>
+  </section>
+  <footer>Open-source project: <a href="https://github.com/abusuraihsakhri/pulse-pressure-variation-calculator" rel="noopener noreferrer">GitHub repository</a>. No external scripts or fonts required.</footer>
+</main>
+<script>
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const form = $("calculator");
+  const controls = ["pp-max", "pp-min", "sbp-max", "dbp-max", "sbp-min", "dbp-min"];
+  let latest = null;
+
+  function pressure(id, name, allowZero = false) {
+    const raw = $(id).value.trim();
+    if (raw === "") throw new Error(name + " is required.");
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0 || (!allowZero && n === 0)) {
+      throw new Error(name + " must be a finite " + (allowZero ? "nonnegative" : "positive") + " number.");
+    }
+    return n;
+  }
+
+  function calculate() {
+    let high, low;
+    if ($("mode").value === "pulse") {
+      high = pressure("pp-max", "Maximum pulse pressure");
+      low = pressure("pp-min", "Minimum pulse pressure");
+    } else {
+      const sysHigh = pressure("sbp-max", "SBP at maximum PP");
+      const diaHigh = pressure("dbp-max", "DBP at maximum PP", true);
+      const sysLow = pressure("sbp-min", "SBP at minimum PP");
+      const diaLow = pressure("dbp-min", "DBP at minimum PP", true);
+      high = sysHigh - diaHigh;
+      low = sysLow - diaLow;
+      if (high <= 0 || low <= 0) throw new Error("Each systolic pressure must exceed its paired diastolic pressure.");
+    }
+    if (high < low) throw new Error("Maximum pulse pressure must be at least the minimum.");
+    const mean = (high + low) / 2;
+    const ppv = 100 * (high - low) / mean;
+    if (![mean, ppv].every(Number.isFinite)) throw new Error("Numbers are too large to calculate reliably.");
+    return { high, low, mean, ppv };
+  }
+
+  function render(value) {
+    latest = value;
+    $("empty").hidden = true;
+    $("result").hidden = false;
+    $("ppv").textContent = value.ppv.toFixed(2);
+    $("max-out").textContent = value.high.toFixed(2);
+    $("min-out").textContent = value.low.toFixed(2);
+    $("mean-out").textContent = value.mean.toFixed(2);
+  }
+
+  function clearResult() {
+    latest = null;
+    $("error").textContent = "";
+    $("empty").hidden = false;
+    $("result").hidden = true;
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    $("error").textContent = "";
+    try { render(calculate()); }
+    catch (error) { clearResult(); $("error").textContent = error.message; }
+  });
+
+  $("mode").addEventListener("change", () => {
+    $("pulse-fields").hidden = $("mode").value !== "pulse";
+    $("paired-fields").hidden = $("mode").value !== "paired";
+    clearResult();
+  });
+  controls.forEach((id) => $(id).addEventListener("input", clearResult));
+  form.addEventListener("reset", () => {
+    $("mode").value = "pulse";
+    $("pulse-fields").hidden = false;
+    $("paired-fields").hidden = true;
+    clearResult();
+  });
+  $("example").addEventListener("click", () => {
+    if ($("mode").value === "pulse") {
+      $("pp-max").value = "42"; $("pp-min").value = "38";
+    } else {
+      $("sbp-max").value = "122"; $("dbp-max").value = "80";
+      $("sbp-min").value = "118"; $("dbp-min").value = "80";
+    }
+    clearResult();
+  });
+  $("download").addEventListener("click", () => {
+    if (!latest) return;
+    const rows = ["pp_max_mmhg,pp_min_mmhg,pp_mean_mmhg,ppv_percent",
+      [latest.high, latest.low, latest.mean, latest.ppv.toFixed(2)].join(",")];
+    const blob = new Blob([rows.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "pulse-pressure-variation.csv";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  });
+</script>
+</body>
+</html>
