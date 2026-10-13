@@ -2,111 +2,121 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Pulse Pressure Variation Calculator API",
-    "description": "Enterprise Distributed Component Platform (Clinical & Cryptographic AI) adhering to CAP / CLSI / NIST Standards.",
-    "version": "3.0.0-ENTERPRISE",
-    "contact": {
-      "name": "Dr. Abu Suraih Sakhri",
-      "url": "https://github.com/abusuraihsakhri"
-    }
+    "description": "PPV measurement endpoint and legacy audit-worker interfaces. Legacy audit endpoints are not validated as clinical decision-support systems.",
+    "version": "3.0.0"
   },
   "paths": {
     "/health": {
       "get": {
-        "summary": "Health and metadata check",
+        "summary": "Local server health",
         "responses": {
           "200": {
-            "description": "System optimal"
+            "description": "JSON health metadata"
           }
         }
       }
     },
     "/metrics": {
       "get": {
-        "summary": "Prometheus operational metrics",
+        "summary": "In-memory task counts",
         "responses": {
           "200": {
-            "description": "Prometheus text metrics"
+            "description": "JSON counters"
+          }
+        }
+      }
+    },
+    "/api/ppv": {
+      "post": {
+        "summary": "Calculate PPV from PP extrema or paired BP measurements",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pp_max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "pp_min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "sbp_max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "dbp_max": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "sbp_min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "dbp_min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "description": "Supply both PP fields, or all four paired BP fields, in mmHg."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "PPmax, PPmin, PPmean (mmHg), PPV percent"
+          },
+          "422": {
+            "description": "Invalid or incomplete measurement input"
           }
         }
       }
     },
     "/api/audit": {
       "post": {
-        "summary": "Dispatch task payload across specialized workers",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "task_id": {
-                    "type": "string"
-                  },
-                  "target_identifier": {
-                    "type": "string"
-                  },
-                  "primary_metric": {
-                    "type": "number"
-                  },
-                  "secondary_metric": {
-                    "type": "number"
-                  },
-                  "status_descriptor": {
-                    "type": "string"
-                  },
-                  "is_critical_flag": {
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "task_id",
-                  "target_identifier",
-                  "primary_metric"
-                ]
-              }
-            }
-          }
-        },
+        "summary": "Legacy generic worker audit",
         "responses": {
           "200": {
-            "description": "Consensus dossier with HMAC signature"
+            "description": "Legacy dossier"
+          },
+          "422": {
+            "description": "Invalid input"
           }
         }
       }
     },
     "/api/chat": {
       "post": {
-        "summary": "Air-gapped supervisory conversational assistant",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "query"
-                ]
-              }
-            }
-          }
-        },
+        "summary": "Legacy deterministic mock response",
         "responses": {
           "200": {
-            "description": "Supervisory response"
+            "description": "Mock response"
           }
         }
       }
     },
     "/api/audit/logs": {
       "get": {
-        "summary": "Retrieve and cryptographically verify HMAC audit trail",
+        "summary": "In-memory legacy audit signatures and chain check",
         "responses": {
           "200": {
-            "description": "Cryptographic audit trail"
+            "description": "Audit chain and verification status"
           }
         }
       }
