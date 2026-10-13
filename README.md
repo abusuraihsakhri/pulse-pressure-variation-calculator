@@ -1,134 +1,71 @@
 # Pulse Pressure Variation Calculator
 
-> **Domain:** Clinical Decision Support & Biomedical Computing
+### [Open the Live Application →](https://abusuraihsakhri.github.io/pulse-pressure-variation-calculator/)
 
-<div align="center">
+A browser-based and Python calculator for respiratory **pulse pressure variation (PPV)**, using maximum and minimum arterial pulse pressure values measured over the same respiratory cycle. The browser version requires no login, installation, backend, or external assets.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+## Use the calculator
 
-</div>
+1. Select **Pulse pressures** and enter PPmax and PPmin, in mmHg, or select **Systolic and diastolic pairs** to enter the blood pressures for the beats with maximal and minimal pulse pressure.
+2. Select **Calculate PPV** to display the percentage and underlying pressures.
+3. Optionally export the result as CSV, or select **Fill example** to evaluate PPmax = 42 and PPmin = 38 mmHg (PPV = 10%).
 
----
+**Formula:** PPV (%) = 100 × (PPmax − PPmin) / ((PPmax + PPmin) / 2), where each PP = SBP − DBP from a *single beat*. Independent maxima and minima of SBP and DBP must not be combined as if they were paired beats.
 
-## What It Does
+Inputs must be positive, finite pulse pressures with PPmax ≥ PPmin. In paired-pressure mode the diastolic pressure may be zero, but each SBP must exceed its corresponding DBP. Results are numerical measurements, not diagnoses or fluid treatment decisions.
 
-Pulse Pressure Variation Calculator computes clinical scores from laboratory values and physiological measurements. Supports MELD-Na, QTc (Bazett), BMI z-score, HbA1c/eAG conversion, APRI/FIB-4, and generic scoring.
+## Important clinical limitations
 
----
+PPV is a dynamic variable most applicable to controlled mechanical ventilation, adequate ventilatory conditions, and a regular cardiac rhythm. Spontaneous breathing, arrhythmias, low tidal volume, poor arterial waveform fidelity, right ventricular dysfunction, or altered cardiopulmonary mechanics can invalidate commonly used interpretation thresholds. A numerical PPV result **does not by itself establish fluid responsiveness**. The calculator does not derive SVV from PPV. It is intended for research, teaching, and review; it is not a validated medical device.
 
-## Key Modules
+## Python and API
 
-### Core Calculators (`ppv.py`)
-- **`assess_row()`** — Routes input rows to the appropriate calculator based on detected keys.
-- **`calculate_meld_na()`** — MELD-Na score for liver disease severity.
-- **`calculate_qtc()`** — Corrected QT interval using Bazett's formula.
-- **`calculate_bmi_z()`** — BMI computation for pediatric patients.
-- **`convert_hba1c()`** — Converts between HbA1c (%) and estimated average glucose (mg/dL).
-- **`calculate_apri_fib4()`** — APRI and FIB-4 scores for liver fibrosis assessment.
-- **`process_csv()`** — Batch processes CSV files through the calculator pipeline.
+Python 3.10 or later:
 
-### Enterprise Agent Framework (`agents/`)
-- **SystemSupervisor** — Multi-worker orchestration with PHI guard and HMAC-SHA256 audit trail.
-- **Specialized Workers** — InvariantQCWorker, SafetyEscalationWorker, ProtocolConformanceWorker.
-- **FastAPI Server** — REST endpoints at `/api/audit`, `/api/chat`, `/api/audit/logs`, `/health`, `/metrics`.
-
----
-
-## Quickstart
-
-### Installation
 ```bash
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
+python ppv.py ppv --pp-max 42 --pp-min 38
+python cli.py ppv --sbp-max 122 --dbp-max 80 --sbp-min 118 --dbp-min 80
+python ppv.py batch --input sample_ppv.csv --output results.csv
+python -m pytest -q
+node --test tests/web.test.mjs
 ```
 
-### CLI Usage
-```bash
-# Single calculation
-python cli.py audit --task-id TASK-001 --primary 28.5 --secondary 14.2
+Python integration:
 
-# Batch CSV processing
-python cli.py batch -i sample.csv -o results.csv
-
-# Verify audit trail
-python cli.py verify-audit
-
-# Launch API server
-python cli.py serve --host 127.0.0.1 --port 8000
-```
-
-### Direct Python Usage
 ```python
-from ppv import assess_row
+from ppv_core import calculate_ppv
 
-# MELD-Na calculation
-result = assess_row({"bilirubin": 2.5, "creatinine": 1.2, "inr": 1.1, "sodium": 138})
-
-# QTc calculation
-result = assess_row({"qt_ms": 420, "hr_bpm": 72})
-
-# Generic scoring
-result = assess_row({"value": 10, "qty": 2})
+result = calculate_ppv(pp_max=42, pp_min=38)
+assert result["ppv_percent"] == 10.0
 ```
 
----
-
-## Input Data Schema
-
-| Field | Description | Used By |
-|:------|:------------|:--------|
-| `bilirubin` | Bilirubin level (mg/dL) | MELD-Na |
-| `creatinine` | Creatinine level (mg/dL) | MELD-Na |
-| `inr` | International Normalized Ratio | MELD-Na |
-| `sodium` | Sodium level (mEq/L) | MELD-Na |
-| `qt_ms` / `qt` | QT interval (ms) | QTc |
-| `hr_bpm` / `heart_rate` | Heart rate (bpm) | QTc |
-| `weight_kg` | Weight in kilograms | BMI |
-| `height_cm` | Height in centimeters | BMI |
-| `hba1c_percent` | HbA1c percentage | HbA1c conversion |
-| `eag_mgdl` | Estimated average glucose | HbA1c conversion |
-| `ast_u_l` | AST level (U/L) | APRI/FIB-4 |
-
----
-
-## Security
-
-- **Zero-PHI Outbound Interceptor:** AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-- **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation.
-- **Environment-based Secret Management:** `AUDIT_SECRET_KEY` must be set in production (no hardcoded defaults).
-
----
-
-## Testing
+To run the optional local FastAPI server:
 
 ```bash
-# Run full test suite
-pytest -v
-
-# Run with coverage
-pytest -v --cov=.
-
-# Run simulation benchmark
-python simulator.py 1000
+AUDIT_SECRET_KEY="replace-with-a-long-random-key" python cli.py serve --host 127.0.0.1
+curl -s http://127.0.0.1:8000/health
+curl -s -X POST http://127.0.0.1:8000/api/ppv \
+  -H "Content-Type: application/json" \
+  -d '{"pp_max":42,"pp_min":38}'
 ```
 
----
+The POST `/api/ppv` endpoint returns PPmax, PPmin, PPmean (mmHg) and PPV (%); malformed input returns HTTP 422. OpenAPI documentation is generated at `/docs` when the server runs.
 
-## Container Deployment
+**Existing compatibility interfaces:** The separate legacy `ppv.py single` flow, generic batch routing, and `cli.py audit/chat/batch/verify-audit` remain available. Those legacy generic scores and audit-worker rules are not clinically validated PPV algorithms and should **not** be used for medical decisions. The mock supervisory chat does not perform external inference. The root `index.html` is the standalone PPV application; `web/index.html` links to it.
 
-```bash
-# Build and run with Docker Compose
-AUDIT_SECRET_KEY=your-secret-key docker-compose up --build
+## Privacy and security
 
-# Or with Docker directly
-docker build -t pulse-pressure-variation-calculator .
-docker run -p 8000:8000 -e AUDIT_SECRET_KEY=your-secret-key pulse-pressure-variation-calculator
-```
+The browser calculator processes values entirely in local JavaScript and generates downloads locally. It does not transmit input data or use browser storage. The optional Python API is a separate server and **is not authenticated**; keep it on trusted local interfaces or add authentication and transport security before exposing it publicly. The API includes a limited regex identifier guard, which is **not a guarantee of de-identification or regulatory compliance**. Do not submit patient identifiers.
 
----
+The legacy audit log is in-memory. HMAC verification recomputes signatures and checks chain continuity, but it is not durable, independently anchored, or suitable as a regulated audit-record system. Set a strong unique `AUDIT_SECRET_KEY` for deployed servers; the development fallback emits a warning. Docker Compose requires this variable.
 
-## License
+## Development and deployment
 
-MIT License. See [LICENSE](LICENSE) for details.
+- Core: Python standard library in `ppv_core.py`; FastAPI/Pydantic only for the optional server; Node.js is used for static-page regression tests.
+- Frontend: standalone HTML/CSS/JavaScript. Hosting can use GitHub Pages from the repository root without Python, Pyodide, or a backend.
+- CI: Python 3.10–3.12 runs Python unit/integration tests and Node.js browser-script tests.
+- Browser compatibility: current Chromium, Firefox, and Safari versions with standard JavaScript and Blob downloads. No third-party frontend packages.
+- License: [MIT](LICENSE).
+
+The link above is the repository-configured GitHub Pages address. Publication and live-site availability depend on the repository's Pages settings.
