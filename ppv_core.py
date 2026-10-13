@@ -54,11 +54,16 @@ def calculate_ppv(
         raise ValueError("Provide pp_max and pp_min or two paired blood pressures")
     if maximum < minimum:
         raise ValueError("Maximum pulse pressure must be greater than or equal to minimum")
-    mean = (maximum + minimum) / 2
+    mean = maximum / 2 + minimum / 2
+    if not math.isfinite(mean) or mean <= 0:
+        raise ValueError("Pulse pressures are too large to calculate reliably")
+    variation = 100 * ((maximum - minimum) / mean)
+    if not math.isfinite(variation):
+        raise ValueError("Pulse pressures are too large to calculate reliably")
     return {
         "pp_max": round(maximum, 2),
         "pp_min": round(minimum, 2),
         "pp_mean": round(mean, 2),
-        "ppv_percent": round(100 * (maximum - minimum) / mean, 2),
+        "ppv_percent": round(variation, 2),
         "unit": "mmHg",
     }
