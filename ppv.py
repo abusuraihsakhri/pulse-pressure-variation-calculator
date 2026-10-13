@@ -10,6 +10,8 @@ import json
 import math
 import sys
 
+from ppv_core import calculate_ppv
+
 
 def calculate_score(**kwargs):
     """Generic formula stub: weighted sum of numeric inputs."""
@@ -109,7 +111,9 @@ def assess_row(row):
     try:
         if not isinstance(row, dict):
             return {"error": "Input must be a dictionary"}
-        # try common lab keys
+        if any(k in row for k in ("pp_max", "pp_min", "sbp_max", "dbp_max", "sbp_min", "dbp_min")):
+            return calculate_ppv(**{k: row.get(k) for k in ("pp_max", "pp_min", "sbp_max", "dbp_max", "sbp_min", "dbp_min")})
+        # Legacy calculator routes are retained for compatibility.
         if "bilirubin" in row and "creatinine" in row:
             return calculate_meld_na(
                 row.get("bilirubin"), row.get("creatinine"),
@@ -146,6 +150,8 @@ def process_csv(inp, out):
         r = csv.DictReader(f)
         rows = list(r)
         fieldnames = r.fieldnames
+    if not fieldnames:
+        raise ValueError("CSV must have a non-empty header row")
     results = []
     for row in rows:
         res = assess_row(row)
@@ -156,7 +162,7 @@ def process_csv(inp, out):
     for rr in results:
         all_keys.update(rr.keys())
     # keep original first
-    extra = [k for k in all_keys if k not in fieldnames]
+    extra = sorted(k for k in all_keys if k not in fieldnames)
     with open(out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(fieldnames) + extra)
         w.writeheader()
@@ -177,6 +183,13 @@ def build_parser():
     s.add_argument("--qt", type=float)
     s.add_argument("--rr", type=float)
     s.add_argument("--hr", type=float)
+    pv = sub.add_parser("ppv", help="pulse pressure variation from arterial-waveform extrema")
+    pv.add_argument("--pp-max", type=float)
+    pv.add_argument("--pp-min", type=float)
+    pv.add_argument("--sbp-max", type=float)
+    pv.add_argument("--dbp-max", type=float)
+    pv.add_argument("--sbp-min", type=float)
+    pv.add_argument("--dbp-min", type=float)
     b = sub.add_parser("batch", help="batch csv")
     b.add_argument("--input", required=True)
     b.add_argument("--output", required=True)
@@ -187,6 +200,13 @@ def main(argv=None):
     """Main entry point for the CLI."""
     p = build_parser()
     a = p.parse_args(argv)
+    if a.cmd == "ppv":
+        try:
+            result = calculate_ppv(pp_max=a.pp_max, pp_min=a.pp_min, sbp_max=a.sbp_max, dbp_max=a.dbp_max, sbp_min=a.sbp_min, dbp_min=a.dbp_min)
+        except ValueError as exc:
+            p.error(str(exc))
+        print(json.dumps(result))
+        return 0
     if a.cmd == "single":
         if a.json:
             row = json.loads(a.json)
