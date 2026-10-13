@@ -8,6 +8,7 @@ import sys
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
 from agents.base import AuditLogger
+from ppv_core import calculate_ppv
 
 supervisor = SystemSupervisor(model_provider="mock")
 
@@ -15,6 +16,15 @@ supervisor = SystemSupervisor(model_provider="mock")
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="pulse-pressure-variation-calculator", description="Pulse Pressure Variation Calculator")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # Measurement calculator (independent of legacy audit worker API)
+    p_ppv = subparsers.add_parser("ppv", help="Calculate respiratory pulse pressure variation")
+    p_ppv.add_argument("--pp-max", type=float)
+    p_ppv.add_argument("--pp-min", type=float)
+    p_ppv.add_argument("--sbp-max", type=float)
+    p_ppv.add_argument("--dbp-max", type=float)
+    p_ppv.add_argument("--sbp-min", type=float)
+    p_ppv.add_argument("--dbp-min", type=float)
 
     # Audit
     p_audit = subparsers.add_parser("audit", help="Run single task evaluation")
@@ -43,6 +53,14 @@ def main(argv=None):
     p_serve.add_argument("--port", type=int, default=8000)
 
     args = parser.parse_args(argv)
+
+    if args.command == "ppv":
+        try:
+            result = calculate_ppv(pp_max=args.pp_max, pp_min=args.pp_min, sbp_max=args.sbp_max, dbp_max=args.dbp_max, sbp_min=args.sbp_min, dbp_min=args.dbp_min)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(result))
+        return 0
 
     if args.command == "audit":
         payload = SystemTaskPayload(
@@ -85,7 +103,7 @@ def main(argv=None):
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
+        out_fields = list(dict.fromkeys(fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]))
         out_rows = []
         for r in rows:
             payload = SystemTaskPayload(
@@ -94,7 +112,7 @@ def main(argv=None):
                 primary_metric=float(r.get("primary_metric", 15.0)),
                 secondary_metric=float(r.get("secondary_metric", 5.0)),
                 status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                is_critical_flag=bool(r.get("is_critical_flag", False)),
+                is_critical_flag=str(r.get("is_critical_flag", "")).strip().lower() in ("1", "true", "yes"),
             )
             dossier = supervisor.process_task(payload)
             row_dict = dict(r)

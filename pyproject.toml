@@ -31,6 +31,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "httpx>=0.27",
 ]
 
 [project.scripts]
@@ -38,7 +39,7 @@ ppv = "ppv:main"
 pulse-pressure-variation-calculator = "cli:main"
 
 [tool.setuptools]
-py-modules = ["ppv", "cli", "enrichment", "simulator"]
+py-modules = ["ppv", "ppv_core", "cli", "enrichment", "simulator"]
 
 [tool.setuptools.packages.find]
 include = ["agents*"]
