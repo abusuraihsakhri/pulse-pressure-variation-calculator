@@ -97,6 +97,13 @@ class AuditTrail:
             prev = self.logs[i-1]["current_hash"] if i > 0 else "GENESIS_BLOCK_0000000000000000"
             if entry["prev_hash"] != prev:
                 return False
+            fields = ("audit_id", "timestamp", "actor", "actor_tier", "event_type", "payload_hash", "prev_hash", "current_hash")
+            if any(field not in entry for field in fields):
+                return False
+            message = "|".join(str(entry[field]) for field in fields[:-1])
+            expected = hmac.new(self.secret_key, message.encode("utf-8"), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(expected, str(entry["current_hash"])):
+                return False
         return True
 
     def get_trail(self) -> List[Dict[str, Any]]:
